@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายการการบ้านประจำสัปดาห์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen pb-12">
+
+    <div class="bg-indigo-600 text-white py-10 shadow-md mb-8">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-2">📌 รายการงานที่ต้องส่งในสัปดาห์นี้</h1>
+            <p class="text-indigo-100 font-light">อัปเดตข้อมูลอัตโนมัติจาก Google Sheets</p>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4">
+        <div id="loading" class="flex flex-col items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent mb-3"></div>
+            <p class="text-gray-500 font-medium">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <div id="taskList" class="grid grid-cols-1 md:grid-cols-2 gap-5 hidden"></div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzd3L-tHEX3EW9R8UAl7fQqJLmjJ63wlrdtD9aagyWl3PpuYOB7DWKtyO5i3z0r5CV6/exec';
+
+        async function fetchTasks() {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                
+                document.getElementById('loading').classList.add('hidden');
+                const taskList = document.getElementById('taskList');
+                taskList.classList.remove('hidden');
+
+                if (data.length === 0) {
+                    taskList.innerHTML = `<div class="col-span-full text-center text-gray-400 py-8">ไม่มีงานที่ต้องส่งในสัปดาห์นี้ 🎉</div>`;
+                    return;
+                }
+
+                const now = new Date();
+
+                data.forEach(task => {
+                    // คำนวณความด่วนจากวันส่ง (ถ้าเหลือเวลาไม่เกิน 2 วัน ถือว่าเป็นงานด่วน)
+                    const due = new Date(task.dueDate);
+                    const diffDays = !isNaN(due) ? (due - now) / (1000 * 60 * 60 * 24) : 99;
+                    const isUrgent = diffDays >= 0 && diffDays <= 2;
+
+                    // จัดรูปแบบวันที่แสดงผล
+                    const formattedDate = !isNaN(due) 
+                        ? due.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+                        : task.dueDate;
+
+                    const card = document.createElement('div');
+                    card.className = `bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between transition hover:shadow-md relative overflow-hidden`;
+                    
+                    card.innerHTML = `
+                        <div class="absolute top-0 left-0 w-2 h-full ${isUrgent ? 'bg-rose-500' : 'bg-indigo-500'}"></div>
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold ${isUrgent ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}">
+                                    ${task.subject || 'ทั่วไป'}
+                                </span>
+                                ${isUrgent ? '<span class="text-xs font-bold text-rose-500 flex items-center gap-1">⚠️ เร็วๆ นี้</span>' : ''}
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800 mb-2">${task.title}</h2>
+                            <p class="text-sm text-slate-600 mb-4 leading-relaxed">${task.detail || '-'}</p>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1.5">
+                            <div class="flex items-center gap-2">
+                                <span>👨‍🏫 <b>ผู้สอน:</b> ${task.instructor || '-'}</span>
+                            </div>
+                            <div class="flex items-center gap-2 font-medium text-slate-700">
+                                <span>📅 <b>กำหนดส่ง:</b> ${formattedDate}</span>
+                            </div>
+                        </div>
+                    `;
+                    taskList.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').innerHTML = `<p class="text-rose-500 font-medium">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>`;
+            }
+        }
+
+        fetchTasks();
+    </script>
+
+</body>
+</html>
